@@ -30,6 +30,7 @@ class MQTTClient(mqtt_lib.Client):
     id: str = None
 
     topic_queue = []
+    connect_handlers = []
 
     def __init__(
         self,
@@ -66,9 +67,15 @@ class MQTTClient(mqtt_lib.Client):
         super().loop_start()
         super().connect(self.host, self.port)
 
+    def register_on_connect(self, func):
+        log.debug("Adding on_connect handler {}".format(func))
+        self.connect_handlers.append(func)
+
     def on_connect(self, client: mqtt_lib.Client, userdata, flags, rc):
         log.info("Connected to {}:{}".format(self.host, self.port))
         self.process_queues()
+        for func in self.connect_handlers:
+            func(client, userdata, flags, rc)
         connected.send(self)
 
     def on_fail(self, client, userdata, flags, rc):
@@ -129,8 +136,24 @@ class MQTTClient(mqtt_lib.Client):
 _instance = MQTTClient()
 
 connect = _instance.connect
+disconnect = _instance.disconnect
 publish = _instance.publish
 topic = _instance.topic
+
+
+def reconnect(host, port):
+    global _instance
+
+    _instance.disconnect()
+    _instance, connect(host, port)
+
+
+def on_connect():
+    def wrapper(func):
+        _instance.register_on_connect(func)
+        return func
+
+    return wrapper
 
 
 class SendIsDeprecated(Exception):

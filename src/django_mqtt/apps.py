@@ -1,19 +1,35 @@
 from django.apps import AppConfig
-from django.utils.translation import gettext_lazy as _
-from os import environ
+from django.dispatch import receiver
+from django.conf import settings
+from .core import connect, disconnect, reconnect
+import logging
+from time import sleep
+
+log = logging.getLogger("mqtt")
 
 
-class MqttConfig(AppConfig):
+class DjangoMqttConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
     name = "django_mqtt"
-    verbose_name = _("DJANGO-MQTT")
-    # default_auto_field = "django.db.models.AutoField"
 
-    def ready(self):
-        if environ.get("DJANGO_MQTT_STARTED") == "true":
-            # Avoid staring app twice when using the development server
-            return
+    def ready(self) -> None:
+        log.debug("Ready")
 
-        from . import core
+        try:
+            if settings.MQTT_CONFIG["USE_CONSTANCE"]:
+                from constance import config
+                from constance.signals import config_updated
 
-        environ["DJANGO_MQTT_STARTED"] = "true"
-        core.connect(host="127.0.0.1", port=1883)
+                @receiver(config_updated)
+                def constance_updated(sender, key, old_value, new_value, **kwargs):
+                    if old_value is None:
+                        return
+
+                    if key == "MQTT_HOST":
+                        reconnect(host=new_value, port=config.MQTT_PORT)
+
+                connect(host=config.MQTT_HOST, port=config.MQTT_PORT)
+        except AttributeError:
+            log.debug("Use constance not defined")
+
+        return super().ready()
