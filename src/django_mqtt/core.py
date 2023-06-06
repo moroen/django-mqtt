@@ -65,7 +65,12 @@ class MQTTClient(mqtt_lib.Client):
         self.port = port if port is not None else 1883
 
         super().loop_start()
-        super().connect(self.host, self.port)
+        try:
+            super().connect(self.host, self.port)
+        except ConnectionRefusedError:
+            log.error(
+                "Connection refused for connection {}:{}".format(self.host, self.port)
+            )
 
     def register_on_connect(self, func):
         log.debug("Adding on_connect handler {}".format(func))
@@ -145,7 +150,7 @@ def reconnect(host, port):
     global _instance
 
     _instance.disconnect()
-    _instance, connect(host, port)
+    _instance.connect(host, port)
 
 
 def on_connect():

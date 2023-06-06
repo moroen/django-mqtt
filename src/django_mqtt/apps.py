@@ -3,6 +3,7 @@ from django.dispatch import receiver
 from django.conf import settings
 from .core import connect, disconnect, reconnect
 import logging
+from os import environ
 from time import sleep
 
 log = logging.getLogger("mqtt")
@@ -13,10 +14,22 @@ class DjangoMqttConfig(AppConfig):
     name = "django_mqtt"
 
     def ready(self) -> None:
-        log.debug("Ready")
+        if not (
+            environ.get("RUN_MAIN")
+            or environ.get("RFX2MQTT_SERVER_GATEWAY_INTERFACE") == "asgi"
+        ):
+            return
 
-        try:
-            if settings.MQTT_CONFIG["USE_CONSTANCE"]:
+        config = getattr(settings, "MQTT_CONFIG", None)
+        if config is None:
+            log.debug("No settings specified")
+        else:
+            use_constance = (
+                config["USE_CONSTANCE"] if "USE_CONSTANCE" in config else False
+            )
+            # print(use_constance)
+            if use_constance:
+                log.debug("Using constance")
                 from constance import config
                 from constance.signals import config_updated
 
@@ -25,11 +38,35 @@ class DjangoMqttConfig(AppConfig):
                     if old_value is None:
                         return
 
-                    if key == "MQTT_HOST":
-                        reconnect(host=new_value, port=config.MQTT_PORT)
+                    host = new_value if key == "MQTT_HOST" else config.MQTT_HOST
+                    port = new_value if key == "MQTT_PORT" else config.MQTT_PORT
+
+                    log.debug(
+                        "Constance settings changed, reconnecting to {}:{}".format(
+                            host, port
+                        )
+                    )
+
+                    reconnect(host=host, port=port)
 
                 connect(host=config.MQTT_HOST, port=config.MQTT_PORT)
-        except AttributeError:
-            log.debug("Use constance not defined")
+            else:
+                if "HOST" in config:
+                    host = config["HOST"]
+                else:
+                    host = "127.0.0.1"
+                    log.warn(
+                        "Using settings from settings.py, but no HOST specified. Using default (127.0.0.1)"
+                    )
+
+                if "PORT" in config:
+                    port = config["PORT"]
+                else:
+                    port = 1883
+                    log.warn(
+                        "Using settings from settings.py, but no PORT specified. Using default (1883)"
+                    )
+
+                connect(host=host, port=port)
 
         return super().ready()
