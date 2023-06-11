@@ -26,7 +26,6 @@ class DjangoMqttConfig(AppConfig):
             use_constance = (
                 config["USE_CONSTANCE"] if "USE_CONSTANCE" in config else False
             )
-            # print(use_constance)
             if use_constance:
                 log.debug("Using constance")
                 from constance import config
