@@ -16,7 +16,6 @@ class DjangoMqttConfig(AppConfig):
     def ready(self) -> None:
         if not (
             environ.get("RUN_MAIN")
-            or environ.get("RFX2MQTT_SERVER_GATEWAY_INTERFACE") == "asgi"
         ):
             return
 
