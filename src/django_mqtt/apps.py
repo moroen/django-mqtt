@@ -14,9 +14,7 @@ class DjangoMqttConfig(AppConfig):
     name = "django_mqtt"
 
     def ready(self) -> None:
-        if not (
-            environ.get("RUN_MAIN")
-        ):
+        if not (environ.get("RUN_MAIN")):
             return
 
         config = getattr(settings, "MQTT_CONFIG", None)
@@ -45,9 +43,19 @@ class DjangoMqttConfig(AppConfig):
                         )
                     )
 
+                    if key == "MQTT_ENABLE":
+                        if new_value:
+                            reconnect(host=host, port=port)
+                        else:
+                            disconnect()
+                        return
+
                     reconnect(host=host, port=port)
 
-                connect(host=config.MQTT_HOST, port=config.MQTT_PORT)
+                if config.MQTT_ENABLE:
+                    connect(host=config.MQTT_HOST, port=config.MQTT_PORT)
+                else:
+                    log.debug("Disabled by settings")
             else:
                 if "HOST" in config:
                     host = config["HOST"]

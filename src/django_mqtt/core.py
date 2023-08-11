@@ -99,15 +99,18 @@ class MQTTClient(mqtt_lib.Client):
     ) -> MQTTMessageInfo:
         if self.is_connected():
             log.debug(
-                "Publishing {} on topic {} with retain: {}".format(payload, topic, retain)
+                "Publishing {} on topic {} with retain: {}".format(
+                    payload, topic, retain
+                )
             )
 
             return super().publish(topic, payload, qos, retain, properties)
         else:
             log.debug(
-                "Not connected - Can`t publish  {} on topic {} with retain: {}. ".format(payload, topic, retain)
+                "Not connected - Can`t publish  {} on topic {} with retain: {}. ".format(
+                    payload, topic, retain
+                )
             )
-
 
     # def send(self, topic, payload, retain=False):
     #    log.debug(
